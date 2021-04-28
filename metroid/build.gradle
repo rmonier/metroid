@@ -1,0 +1,268 @@
+plugins {
+    // Apply the application plugin to add support for building a CLI application in Java.
+    id 'application'
+
+    // jpackage
+    id "org.panteleyev.jpackageplugin" version "1.3.0"
+}
+
+version = '1.0.0'
+
+compileJava.options.encoding = 'UTF-8'
+compileTestJava.options.encoding = 'UTF-8'
+javadoc.options.encoding = 'UTF-8'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(16)
+        vendor = JvmVendorSpec.AZUL
+    }
+}
+
+configurations {
+    sdljava
+    sdl
+    sdlprojects
+}
+
+repositories {
+    // Use SourceForge for sdljava dependency as it's the only location where it is.
+    def sourceforge = ivy {
+        url 'https://downloads.sourceforge.net/'
+
+        patternLayout {
+            artifact '/project/[organisation]/[module]/[revision]/[module]-[revision]-[classifier].[ext]'
+        }
+
+        // This is required in Gradle 6.0+ as metadata file (ivy.xml) is mandatory.
+        metadataSources { artifact() } 
+    }
+    exclusiveContent {
+        forRepositories(sourceforge)
+        filter { includeGroup("sdljava") }
+    }
+
+    // Use SDL repo for sdl dependency.
+    def libsdl = ivy {
+        url 'https://libsdl.org/'
+
+        patternLayout {
+            artifact '/release/[module]-[revision]-[classifier].[ext]'
+        }
+
+        // This is required in Gradle 6.0+ as metadata file (ivy.xml) is mandatory.
+        metadataSources { artifact() } 
+    }
+    exclusiveContent {
+        forRepositories(libsdl)
+        filter { includeGroup("SDL") }
+    }
+
+    // Use SDL projects repo for sdl projects dependencies.
+    def libsdlprojects = ivy {
+        url 'https://libsdl.org/'
+
+        patternLayout {
+            artifact '/projects/[organisation]/release/[module]-[revision]-[classifier].[ext]'
+        }
+
+        // This is required in Gradle 6.0+ as metadata file (ivy.xml) is mandatory.
+        metadataSources { artifact() } 
+    }
+    exclusiveContent {
+        forRepositories(libsdlprojects)
+        filter { 
+            includeGroup("SDL_image")
+            includeGroup("SDL_mixer")
+            includeGroup("SDL_ttf")
+        }
+    }
+
+    // Use Maven Central for resolving dependencies.
+    mavenCentral()
+}
+
+def os = org.gradle.nativeplatform.platform.internal.DefaultNativePlatform.currentOperatingSystem
+
+// Comment this line if you want to build the macOS application manually. You will have to adjust this build file in order to use your own libraries.
+if(os.isMacOsX()) throw new GradleException('macOS is not compatible with this application. Please see README.md.')
+
+dependencies {
+    implementation group: 'commons-io', name: 'commons-io', version: '2.6'
+
+    if(os.isWindows()) {
+        sdljava 'sdljava:sdljava:0.9.1:win32-bin@zip'
+        sdl 'SDL:SDL:1.2.15:win32@zip'
+        sdlprojects 'SDL_image:SDL_image:1.2.12:win32@zip'
+        sdlprojects 'SDL_mixer:SDL_mixer:1.2.12:win32@zip'
+        sdlprojects 'SDL_ttf:SDL_ttf:2.0.11:win32@zip'
+    } else {
+        sdljava 'sdljava:sdljava:0.9.1:linux-2.6-bin@tar.gz'
+        sdl 'SDL:SDL:1.2.15:1.i386@rpm'
+        sdlprojects 'SDL_image:SDL_image:1.2.12:1.i386@rpm'
+        sdlprojects 'SDL_mixer:SDL_mixer:1.2.12:1.i386@rpm'
+        sdlprojects 'SDL_ttf:SDL_ttf:2.0.11:1.i386@rpm'
+    }
+
+    implementation fileTree(dir: "${buildDir}/extlibs/sdljava", include: '*.jar')
+}
+
+application {
+    // Define the main class for the application.
+    mainClass = 'metroid.Metroid'
+    applicationDefaultJvmArgs = ["-Dfile.encoding=UTF-8"]
+}
+
+jar {
+    manifest {
+        attributes('Implementation-Title': project.name,
+                   'Implementation-Version': project.version,
+                   'Main-Class': application.mainClass
+        )
+    }
+    from {
+        configurations.runtimeClasspath.filter{ it.exists() }.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+    from {
+        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+        fileTree(buildDir).matching {
+            include 'extlibs/**/*'
+            exclude '**/*.jar'
+        }
+    }
+}
+
+tasks.jpackage {
+
+    input = "${buildDir}/libs"
+    destination = "${buildDir}/dist"
+
+    appName = rootProject.name
+    appVersion = project.version
+    type = org.panteleyev.jpackage.ImageType.APP_IMAGE
+    vendor = "rmonier"
+    
+    def filename = project.name + "-" + project.version
+
+    mainJar = filename + ".jar"
+    mainClass = 'metroid.Metroid'
+    
+    javaOptions = ["-Dfile.encoding=UTF-8"]
+
+    /* LINUX */
+
+    linuxPackageName = filename
+    linuxShortcut = true;
+
+    icon = "${buildDir}/resources/main/img/logo.png"
+
+    /* WINDOWS */
+
+    winMenu = true
+    winDirChooser = true
+    winShortcut = true;
+
+    windows {
+        winConsole = false
+        icon = "${buildDir}/resources/main/img/logo.ico"
+    }
+
+    /* MACOS */
+
+    macPackageName = filename
+
+    mac {
+        icon = "${buildDir}/resources/main/img/logo.png"
+    }
+}
+
+// Extract sdljava Windows/UNIX package downloaded from SourceForge
+task extract(type: Copy) {
+    def archivePath = project.configurations.sdljava.find { it.name.startsWith("sdljava") }
+    def archiveFile = file(archivePath)
+    def outputDir = file("${buildDir}/extlibs/sdljava")
+
+    if(os.isWindows()) {
+        from zipTree(archiveFile)
+        include 'sdljava-0.9.1/lib/*'
+        includeEmptyDirs = false
+        eachFile { fcd -> fcd.relativePath = new RelativePath(!fcd.isDirectory(), fcd.relativePath.segments.drop(2)) }
+        into outputDir
+    }
+    else {
+        from tarTree(archiveFile)
+        include 'sdljava-0.9.1/lib/*'
+        includeEmptyDirs = false
+        eachFile { fcd -> fcd.relativePath = new RelativePath(!fcd.isDirectory(), fcd.relativePath.segments.drop(2)) }
+        into outputDir
+    }
+}
+
+// Extract sdl dynamic dependencies
+task extractSDL(type: Copy) {
+    // SDL
+    def archivePath = project.configurations.sdl.find { it.name.startsWith("SDL") }
+    def archiveFile = file(archivePath)
+    def outputDir = file("${buildDir}/extlibs/SDL")
+
+    if(os.isWindows())
+        from zipTree(archiveFile) into outputDir
+    else
+        rpmTreeTo(archiveFile, outputDir)
+}
+
+// Extract sdl dynamic dependencies
+task extractSDLImage(type: Copy) {
+    // SDL_image
+    def archivePath = project.configurations.sdlprojects.find { it.name.startsWith("SDL_image") }
+    def archiveFile = file(archivePath)
+    def outputDir = file("${buildDir}/extlibs/SDL_image")
+
+    if(os.isWindows())
+        from zipTree(archiveFile) into outputDir
+    else
+        rpmTreeTo(archiveFile, outputDir)
+}
+
+// Extract sdl dynamic dependencies
+task extractSDLMixer(type: Copy) {
+    // SDL_mixer
+    def archivePath = project.configurations.sdlprojects.find { it.name.startsWith("SDL_mixer") }
+    def archiveFile = file(archivePath)
+    def outputDir = file("${buildDir}/extlibs/SDL_mixer")
+
+    if(os.isWindows())
+        from zipTree(archiveFile) into outputDir
+    else
+        rpmTreeTo(archiveFile, outputDir)
+}
+
+// Extract sdl dynamic dependencies
+task extractSDLTtf(type: Copy) {
+    // SDL_ttf
+    def archivePath = project.configurations.sdlprojects.find { it.name.startsWith("SDL_ttf") }
+    def archiveFile = file(archivePath)
+    def outputDir = file("${buildDir}/extlibs/SDL_ttf")
+
+    if(os.isWindows())
+        from zipTree(archiveFile) into outputDir
+    else
+        rpmTreeTo(archiveFile, outputDir)
+}
+
+def rpmTreeTo(Object rpm, outputDir) {
+    outputDir.mkdirs()
+    def cd = 'cd ' + outputDir.getAbsolutePath()
+    def extract = 'rpm2cpio ' + rpm.getAbsolutePath() + ' | cpio --quiet -idm'
+    exec { commandLine 'bash', '-c', cd + ' && ' + extract }
+}
+
+compileJava.dependsOn(extract) // extract sdljava after download
+extract.dependsOn(extractSDL) // extract sdl dependencies before sdljava
+extractSDL.dependsOn(extractSDLImage)
+extractSDL.dependsOn(extractSDLMixer)
+extractSDL.dependsOn(extractSDLTtf)
+
+build.dependsOn(javadoc)
+
+jpackage.dependsOn(jar)
