@@ -139,7 +139,7 @@ tasks.jpackage {
 
     appName = rootProject.name
     appVersion = project.version
-    type = org.panteleyev.jpackage.ImageType.APP_IMAGE
+    type = org.panteleyev.jpackage.ImageType.DEFAULT
     vendor = "rmonier"
     
     def filename = project.name + "-" + project.version
