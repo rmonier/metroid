@@ -124,9 +124,10 @@ Le script peut être lancé séparemment du build :
   ```sh
   gradlew jar
   ```
-Cette archive est indépendante et peut être distribuée sur tout système qui utilise un Java OpenJDK 16 Zulu 32 bits en utilisant la commande suivante :
+Cette archive est indépendante et peut être distribuée sur tout système qui utilise un Java OpenJDK 16 Zulu 32 bits sur l'OS correspondant en utilisant la commande suivante :
   ```sh
-  java -jar metroid-1.0.0.jar
+  java -jar metroid-1.0.0-windows.jar
+  java -jar metroid-1.0.0-linux.jar
   ```
 
 #### Exécutable (optionnel)

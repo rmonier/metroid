@@ -120,6 +120,17 @@ jar {
                    'Main-Class': application.mainClass
         )
     }
+
+    def os_name = ""
+    if(os.isWindows())
+        os_name = "windows"
+    else if(os.isMacOsX())
+        os_name = "macos"
+    else
+        os_name = "linux"
+
+    archiveClassifier = os_name
+
     from {
         configurations.runtimeClasspath.filter{ it.exists() }.collect { it.isDirectory() ? it : zipTree(it) }
     }
@@ -141,17 +152,15 @@ tasks.jpackage {
     appVersion = project.version
     type = org.panteleyev.jpackage.ImageType.DEFAULT
     vendor = "rmonier"
-    
-    def filename = project.name + "-" + project.version
 
-    mainJar = filename + ".jar"
+    mainJar = jar.archiveFileName.get()
     mainClass = 'metroid.Metroid'
     
     javaOptions = ["-Dfile.encoding=UTF-8"]
 
     /* LINUX */
 
-    linuxPackageName = filename
+    linuxPackageName = jar.archiveBaseName.get()
     linuxShortcut = true;
 
     icon = "${buildDir}/resources/main/img/logo.png"
@@ -169,7 +178,7 @@ tasks.jpackage {
 
     /* MACOS */
 
-    macPackageName = filename
+    macPackageName = jar.archiveBaseName.get()
 
     mac {
         icon = "${buildDir}/resources/main/img/logo.png"
