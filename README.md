@@ -72,7 +72,7 @@ Jeu réalisé en 2016/2017 avec Quentin Kaiffer et Marin Navarro pour le projet 
 
 ### Prérequis
 
-* Installer la version 16 32 bits de l'OpenJDK d'Azul (Zulu) disponible à cette adresse : https://www.azul.com/downloads/zulu-community/?version=java-16-sts&architecture=x86-32-bit&package=jdk
+* Installer la version 17 32 bits de l'OpenJDK d'Azul (Zulu) disponible à cette adresse : https://www.azul.com/downloads/?version=java-17-lts&architecture=x86-32-bit&package=jdk
 
 > :warning: **Utilisation sous Linux** : Afin d'extraire automatiquement les dépendances il faut installer `rpm2cpio` et `cpio` :
 > ```sh
@@ -124,10 +124,10 @@ Le script peut être lancé séparemment du build :
   ```sh
   gradlew jar
   ```
-Cette archive est indépendante et peut être distribuée sur tout système qui utilise un Java OpenJDK 16 Zulu 32 bits sur l'OS correspondant en utilisant la commande suivante :
+Cette archive est indépendante et peut être distribuée sur tout système qui utilise un Java OpenJDK 17 Zulu 32 bits sur l'OS correspondant en utilisant la commande suivante :
   ```sh
-  java -jar metroid-1.0.0-windows.jar
-  java -jar metroid-1.0.0-linux.jar
+  java -jar metroid-1.0.1-windows.jar
+  java -jar metroid-1.0.1-linux.jar
   ```
 
 #### Exécutable (optionnel)
